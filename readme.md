@@ -63,7 +63,7 @@ To monitor parameter changes from Pianoteq or Organteq's GUI:
 
 2. In another terminal, run the audio streamer with RPC enabled:
    ```bash
-   ./build/release/AudioUnitHost --subtype "Pt9q" --manufacturer "Mdrt" --enable-rpc
+   ./.build/release/AudioUnitHost --subtype "Pt9q" --manufacturer "Mdrt" --enable-rpc
    ```
 
 3. Changes you make in the Pianoteq GUI will be logged to stdout:
@@ -76,19 +76,19 @@ To monitor parameter changes from Pianoteq or Organteq's GUI:
 ### Advanced usage
 ```bash
 # Custom TCP host and port for audio streaming
-./AudioUnitHost -s "Pt9q" -m "Mdrt" -h "192.168.1.100" -p 8888
+./.build/release/AudioUnitHost -s "Pt9q" -m "Mdrt" -h "192.168.1.100" -p 8888
 
 # Use planar format for better memory contiguity in per-channel processing
 # (for stereo, output will be e.g. LLRR instead of LRLR)
-./AudioUnitHost -s "Pt9q" -m "Mdrt" --format planar
+./.build/release/AudioUnitHost -s "Pt9q" -m "Mdrt" --format planar
 
 # Custom buffer size and RPC polling interval
-./AudioUnitHost -s "Pt9q" -m "Mdrt" --enable-rpc \
+./.build/release/AudioUnitHost -s "Pt9q" -m "Mdrt" --enable-rpc \
   --buffer-size 1024 \
   --rpc-poll-interval 0.3
 
 # Connect to RPC server on different host/port
-./AudioUnitHost -s "Pt9q" -m "Mdrt" --enable-rpc \
+./.build/release/AudioUnitHost -s "Pt9q" -m "Mdrt" --enable-rpc \
   --rpc-host "127.0.0.1" \
   --rpc-port 8082
 ```
