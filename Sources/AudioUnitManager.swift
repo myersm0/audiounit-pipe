@@ -9,6 +9,7 @@ class AudioUnitManager {
 	let config: Config
 	private var sampleTime: Float64 = 0
 	private let renderLock = NSLock()
+	private var velocityTable: VelocityTable? = nil
 	
 	init(config: Config) throws {
 		self.config = config
@@ -155,6 +156,10 @@ class AudioUnitManager {
 		if let presetPath = config.presetPath {
 			try restoreState(fromPresetPath: presetPath)
 		}
+		
+		if let tablePath = config.velocityTablePath {
+			velocityTable = try VelocityTable(path: tablePath)
+		}
 	}
 	
 	private func restoreState(fromPresetPath path: String) throws {
@@ -204,21 +209,28 @@ class AudioUnitManager {
 		defer { renderLock.unlock() }
 		
 		if data.count == 3 {
+			var bytes = data
+			let status = bytes[0] & 0xF0
+			let channel = bytes[0] & 0x0F
+			
+			if status == 0x90 && bytes[2] > 0, let table = velocityTable {
+				let mapped = max(1, table.map(note: bytes[1], velocity: bytes[2]))
+				verboseLog("Velocity remap - Note: \(bytes[1]), \(bytes[2]) -> \(mapped)")
+				bytes[2] = mapped
+			}
+			
 			MusicDeviceMIDIEvent(
 				audioUnit,
-				UInt32(data[0]),
-				UInt32(data[1]),
-				UInt32(data[2]),
+				UInt32(bytes[0]),
+				UInt32(bytes[1]),
+				UInt32(bytes[2]),
 				0
 			)
 			
-			let status = data[0] & 0xF0
-			let channel = data[0] & 0x0F
-			
-			if status == 0x90 && data[2] > 0 {
-				verboseLog("Note On - Channel: \(channel), Note: \(data[1]), Velocity: \(data[2])")
-			} else if status == 0x80 || (status == 0x90 && data[2] == 0) {
-				verboseLog("Note Off - Channel: \(channel), Note: \(data[1])")
+			if status == 0x90 && bytes[2] > 0 {
+				verboseLog("Note On - Channel: \(channel), Note: \(bytes[1]), Velocity: \(bytes[2])")
+			} else if status == 0x80 || (status == 0x90 && bytes[2] == 0) {
+				verboseLog("Note Off - Channel: \(channel), Note: \(bytes[1])")
 			}
 		}
 	}

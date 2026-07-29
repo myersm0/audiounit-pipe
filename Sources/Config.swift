@@ -18,6 +18,7 @@ struct Config {
 	let bufferSize: UInt32
 	let audioFormat: AudioFormat
 	let presetPath: String?
+	let velocityTablePath: String?
 	
 	static func parse() -> Config {
 		let args = CommandLine.arguments
@@ -34,6 +35,7 @@ struct Config {
 		var bufferSize: UInt32 = 512
 		var audioFormat: AudioFormat = .interleaved
 		var presetPath: String? = nil
+		var velocityTablePath: String? = nil
 		
 		var i = 1
 		while i < args.count {
@@ -111,6 +113,12 @@ struct Config {
 				}
 				presetPath = args[i + 1]
 				i += 2
+			case "--velocity-table":
+				guard i + 1 < args.count else {
+					fatalError("Missing value for --velocity-table")
+				}
+				velocityTablePath = args[i + 1]
+				i += 2
 			case "--help":
 				printUsage()
 				exit(0)
@@ -139,7 +147,8 @@ struct Config {
 			rpcPollInterval: rpcPollInterval,
 			bufferSize: bufferSize,
 			audioFormat: audioFormat,
-			presetPath: presetPath
+			presetPath: presetPath,
+			velocityTablePath: velocityTablePath
 		)
 	}
 	
@@ -158,6 +167,7 @@ struct Config {
 		  --buffer-size SIZE              Audio buffer size in frames (default: 512)
 		  --format FORMAT                 Audio format: 'interleaved' or 'planar' (default: interleaved)
 		  --preset PATH                   Restore audio unit state from an .aupreset file
+		  --velocity-table PATH           Remap note-on velocities via a JSON lookup table (hot-reloaded on change)
 		  --enable-rpc                    Enable JSON-RPC monitoring
 		  --rpc-host HOST                 JSON-RPC host (default: 127.0.0.1)
 		  --rpc-port PORT                 JSON-RPC port (default: 8081)
