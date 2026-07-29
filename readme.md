@@ -51,7 +51,31 @@ To run the application, you need to find the 4-character subtype and manufacture
 
 # With verbose output
 ./AudioUnitHost --subtype "Pt9q" --manufacturer "Mdrt" --verbose
+
+# With UVI Workstation, restoring a saved instrument state
+./AudioUnitHost --subtype "UVIW" --manufacturer "UVI " \
+  --preset ~/Library/Audio/Presets/UVI/UVIWorkstation/my-test-preset.aupreset
+
+# With velocity remapping through a lookup table
+./AudioUnitHost --subtype "UVIW" --manufacturer "UVI " \
+  --preset ~/Library/Audio/Presets/UVI/UVIWorkstation/my-test-preset.aupreset \
+  --velocity-table ~/velocity_tables/current.json
 ```
+
+### State restore from .aupreset
+Since the host runs the audio unit without a UI, plugins that need configuration (which instrument to load, internal settings) can be restored from a standard `.aupreset` file via `--preset`. To produce one: host the plugin in any AU host with a UI (AU Lab, Logic, Reaper), configure it, and use the plugin window's preset menu ("Save Preset As..."), which writes to `~/Library/Audio/Presets/MANUFACTURER/PLUGIN/`. The host warns if the preset's subtype/manufacturer codes don't match the loaded audio unit. Sample-based instruments may stream content for several seconds after restore before rendering sound.
+
+### Velocity remapping
+`--velocity-table PATH` remaps note-on velocities through a per-note lookup table before they reach the instrument. The file is JSON:
+
+```json
+{
+  "metadata": { "description": "free-form, ignored by the host" },
+  "table": [ "... 128 rows (one per MIDI note 0-127), each 128 integers (one output velocity per input velocity) ..." ]
+}
+```
+
+Semantics: `table[note][velocity_in] = velocity_out`. Entry 0 of each row is unused (velocity 0 is a note-off by MIDI convention and passes through untouched, as do note-offs, control changes, and all other message types); outputs are clamped to 1–127 so a mapping can never turn a note-on into a note-off. The file is polled for modification every 0.5 s and hot-reloaded, so an external process can rewrite it (atomically: write temp file, then rename) and hear the change on the next keystroke. If a reload fails to parse, the previous table is kept and a warning is printed.
 
 ### With JSON-RPC monitoring
 To monitor parameter changes from Pianoteq or Organteq's GUI:
@@ -105,6 +129,8 @@ To monitor parameter changes from Pianoteq or Organteq's GUI:
 - `-h, --host HOST` - TCP host for audio streaming (default: 127.0.0.1)
 - `--buffer-size SIZE` - Audio buffer size in frames (default: 512)
 - `--format FORMAT` - Audio output format: 'planar' or 'interleaved' (default: interleaved)
+- `--preset PATH` - Restore audio unit state from an `.aupreset` file
+- `--velocity-table PATH` - Remap note-on velocities via a JSON lookup table (hot-reloaded on change)
 
 ### Optional - JSON-RPC monitoring
 - `--enable-rpc` - Enable JSON-RPC parameter monitoring
