@@ -151,6 +151,52 @@ class AudioUnitManager {
 		// Give audio unit time to fully initialize
 		Thread.sleep(forTimeInterval: 0.5)
 		verboseLog("Audio Unit initialization complete")
+		
+		if let presetPath = config.presetPath {
+			try restoreState(fromPresetPath: presetPath)
+		}
+	}
+	
+	private func restoreState(fromPresetPath path: String) throws {
+		let presetData: Data
+		do {
+			presetData = try Data(contentsOf: URL(fileURLWithPath: path))
+		} catch {
+			throw AudioUnitError.presetUnreadable(path: path, underlying: error)
+		}
+		
+		guard let plist = try? PropertyListSerialization.propertyList(from: presetData, options: [], format: nil),
+		      let preset = plist as? [String: Any] else {
+			throw AudioUnitError.presetNotAPlist(path: path)
+		}
+		
+		if let presetSubtype = (preset["subtype"] as? NSNumber)?.uint32Value,
+		   presetSubtype != Self.makeFourCC(config.componentSubType) {
+			print("Warning: preset subtype \(Self.fourCCToString(presetSubtype)) does not match loaded audio unit \(config.componentSubType)")
+		}
+		if let presetManufacturer = (preset["manufacturer"] as? NSNumber)?.uint32Value,
+		   presetManufacturer != Self.makeFourCC(config.componentManufacturer) {
+			print("Warning: preset manufacturer \(Self.fourCCToString(presetManufacturer)) does not match loaded audio unit \(config.componentManufacturer)")
+		}
+		
+		var classInfo = plist as CFPropertyList?
+		let status = withUnsafePointer(to: &classInfo) { pointer in
+			AudioUnitSetProperty(
+				audioUnit,
+				kAudioUnitProperty_ClassInfo,
+				kAudioUnitScope_Global,
+				0,
+				pointer,
+				UInt32(MemoryLayout<CFPropertyList?>.size)
+			)
+		}
+		guard status == noErr else {
+			throw AudioUnitError.presetRestoreFailed(status: status)
+		}
+		
+		let presetName = preset["name"] as? String ?? "(unnamed)"
+		print("Restored preset '\(presetName)' from \(path)")
+		print("Note: sample-based instruments may stream content for several seconds before rendering sound")
 	}
 	
 	func processMIDIEvent(_ data: [UInt8]) {
@@ -329,6 +375,9 @@ enum AudioUnitError: Error {
 	case componentNotFound(subtype: String, manufacturer: String)
 	case instantiationFailed(status: OSStatus)
 	case initializationFailed(status: OSStatus)
+	case presetUnreadable(path: String, underlying: Error)
+	case presetNotAPlist(path: String)
+	case presetRestoreFailed(status: OSStatus)
 }
 
 extension AudioUnitError: LocalizedError {
@@ -340,6 +389,12 @@ extension AudioUnitError: LocalizedError {
 			return "Failed to instantiate Audio Unit: \(status)"
 		case .initializationFailed(let status):
 			return "AudioUnit initialization failed: \(status)"
+		case .presetUnreadable(let path, let underlying):
+			return "Could not read preset file at \(path): \(underlying.localizedDescription)"
+		case .presetNotAPlist(let path):
+			return "Preset file at \(path) is not a valid property list"
+		case .presetRestoreFailed(let status):
+			return "Failed to restore audio unit state from preset: \(status)"
 		}
 	}
 }

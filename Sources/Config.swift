@@ -17,6 +17,7 @@ struct Config {
 	let rpcPollInterval: Double
 	let bufferSize: UInt32
 	let audioFormat: AudioFormat
+	let presetPath: String?
 	
 	static func parse() -> Config {
 		let args = CommandLine.arguments
@@ -32,6 +33,7 @@ struct Config {
 		var rpcPollInterval = 0.5
 		var bufferSize: UInt32 = 512
 		var audioFormat: AudioFormat = .interleaved
+		var presetPath: String? = nil
 		
 		var i = 1
 		while i < args.count {
@@ -103,6 +105,12 @@ struct Config {
 					fatalError("Invalid format: \(args[i + 1]). Use 'planar' or 'interleaved'")
 				}
 				i += 2
+			case "--preset":
+				guard i + 1 < args.count else {
+					fatalError("Missing value for --preset")
+				}
+				presetPath = args[i + 1]
+				i += 2
 			case "--help":
 				printUsage()
 				exit(0)
@@ -130,7 +138,8 @@ struct Config {
 			rpcEnabled: rpcEnabled,
 			rpcPollInterval: rpcPollInterval,
 			bufferSize: bufferSize,
-			audioFormat: audioFormat
+			audioFormat: audioFormat,
+			presetPath: presetPath
 		)
 	}
 	
@@ -148,6 +157,7 @@ struct Config {
 		  -h, --host HOST                 TCP host (default: 127.0.0.1)
 		  --buffer-size SIZE              Audio buffer size in frames (default: 512)
 		  --format FORMAT                 Audio format: 'interleaved' or 'planar' (default: interleaved)
+		  --preset PATH                   Restore audio unit state from an .aupreset file
 		  --enable-rpc                    Enable JSON-RPC monitoring
 		  --rpc-host HOST                 JSON-RPC host (default: 127.0.0.1)
 		  --rpc-port PORT                 JSON-RPC port (default: 8081)
@@ -158,6 +168,7 @@ struct Config {
 		  AudioUnitHost --subtype "Pt9q" --manufacturer "Mdrt" --verbose
 		  AudioUnitHost --subtype "Pt9q" --manufacturer "Mdrt" --enable-rpc
 		  AudioUnitHost --subtype "Pt9q" --manufacturer "Mdrt" --format planar
+		  AudioUnitHost --subtype "UVIW" --manufacturer "UVI " --preset my-test-preset.aupreset
 		""")
 	}
 }
